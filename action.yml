@@ -9,15 +9,32 @@ branding:
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: 'Your input description here'
+  keychain-name:
+    description: 'The name of the keychain to create'
     required: true
-    default: '1000'
+    default: 'github-actions'
+
+  keychain-password:
+    description: 'The password for the keychain'
+    required: true
+
+  keychain-timeout:
+    description: 'The timeout for the keychain'
+    required: true
+    default: '3600'
+
+  signing-certificates:
+    description: 'The base64 encoded signing certificates'
+    required: true
+
+  signing-certificate-passphrase:
+    description: 'The passphrase for the signing certificates'
+    required: true
 
 # Define your outputs here.
 outputs:
-  time:
-    description: 'Your output description here'
+  keychain-name:
+    description: 'The name of the keychain that was created'
 
 runs:
   using: node20
