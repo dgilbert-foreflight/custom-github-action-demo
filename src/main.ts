@@ -84,7 +84,6 @@ export async function run(): Promise<void> {
     if (!core.isDebug()) {
       // Cleanup the job
       core.info('\x1b[33mCleaning up\x1b[0m')
-      await deleteKeychain(keychainName)
 
       // Delete the temporary certificate file
       await fsPromises.unlink(certificatePath)
