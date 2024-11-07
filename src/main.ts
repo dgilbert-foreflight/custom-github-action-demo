@@ -21,7 +21,7 @@ export async function run(): Promise<void> {
   // Import the certificates
   const signingCertificates: string[] = core.getMultilineInput('signing-certificates', { required: true })
   const signingCertificatePassphrase: string = core.getInput('signing-certificate-passphrase', { required: true })
-  const certificatePath = "/tmp/certificate.p12"
+  const certificatePath = `${process.env.RUNNER_TEMP}/certificate.p12`
   core.setSecret(signingCertificatePassphrase)
 
   try {
