@@ -25626,6 +25626,198 @@ module.exports = {
 
 /***/ }),
 
+/***/ 1555:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createKeychain = createKeychain;
+exports.deleteKeychain = deleteKeychain;
+exports.importCertificate = importCertificate;
+exports.listCertificates = listCertificates;
+const core = __importStar(__nccwpck_require__(7484));
+const exec = __importStar(__nccwpck_require__(5236));
+/**
+ * Create a keychain and set the default timeout
+ * @returns {Promise<void>} Resolves when the keychain is created
+ */
+async function createKeychain(keychainName, keychainPassword, keychainTimeout) {
+    return new Promise(async (resolve, reject) => {
+        core.setSecret(keychainPassword);
+        // Delete the keychain (if it already exists)
+        try {
+            await deleteKeychain(keychainName);
+        }
+        catch (error) {
+            core.debug(`Keychain ${keychainName} does not exist`);
+        }
+        try {
+            // Create the keychain
+            core.debug(`Creating keychain ${keychainName}`);
+            await exec.exec('security', [
+                'create-keychain',
+                '-p',
+                keychainPassword,
+                keychainName
+            ]);
+            core.info(`Keychain ${keychainName} created`);
+            // Set the default keychain - TODO: This might not be needed / smart.
+            // core.debug(`Setting default keychain to ${keychainName}`)
+            // await exec.exec('security', [
+            //   'default-keychain',
+            //   '-s', 'login.keychain', keychainName
+            // ])
+            // core.info(`Default keychain set to ${keychainName}`)
+            // Unlock the keychain
+            core.debug(`Unlocking keychain ${keychainName}`);
+            await exec.exec('security', [
+                'unlock-keychain',
+                '-p',
+                keychainPassword,
+                keychainName
+            ]);
+            // Set the keychain timeout
+            core.debug(`Setting keychain timeout to ${keychainTimeout} seconds`);
+            await exec.exec('security', [
+                'set-keychain-settings',
+                '-t',
+                keychainTimeout.toString(),
+                '-u',
+                keychainName
+            ]);
+            // Reveal the keychain to the user
+            core.debug(`Revealing keychain ${keychainName} to the user`);
+            await exec.exec('security', [
+                'list-keychains',
+                '-d',
+                'user',
+                '-s',
+                'login.keychain',
+                keychainName
+            ]);
+        }
+        catch (error) {
+            reject(error);
+        }
+        // Set outputs for other workflow steps to use
+        core.setOutput('keychain-name', keychainName);
+        resolve();
+    });
+}
+/**
+ * Deletes a keychain
+ * @returns {Promise<void>} Resolves when the keychain is deleted
+ */
+async function deleteKeychain(keychainName) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            core.debug(`Deleting keychain ${keychainName}`);
+            await exec.exec('security', ['delete-keychain', keychainName]);
+            core.info(`Keychain ${keychainName} deleted`);
+        }
+        catch (error) {
+            reject(error);
+        }
+        resolve();
+    });
+}
+/**
+ * Imports a certificate into the keychain
+ * @returns {Promise<void>} Resolves when the certificate is imported
+ */
+async function importCertificate(certificatePath, certificatePassphrase, keychainName, keychainPassword) {
+    return new Promise(async (resolve, reject) => {
+        core.setSecret(certificatePassphrase);
+        core.setSecret(keychainPassword);
+        try {
+            core.debug(`Importing ${certificatePath} into keychain ${keychainName}`);
+            await exec.exec('security', [
+                'import',
+                certificatePath,
+                '-P',
+                certificatePassphrase,
+                '-k',
+                keychainName,
+                '-t',
+                'cert',
+                '-f',
+                'pkcs12',
+                '-T',
+                '/usr/bin/codesign',
+                '-x'
+            ]);
+            // Give signing tools access to the signing key
+            core.debug('Setting key-partition-list');
+            await exec.exec('security', [
+                'set-key-partition-list',
+                '-S',
+                'apple-tool:,apple:,codesign:',
+                '-s',
+                '-k',
+                keychainPassword,
+                keychainName
+            ]);
+        }
+        catch (error) {
+            reject(error);
+        }
+        resolve();
+    });
+}
+/**
+ * Display Certificates in the keychain
+ * @returns {Promise<string[]>} Resolves with an array of certificate names
+ */
+async function listCertificates(keychainName) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const { stdout } = await exec.getExecOutput('security', [
+                'find-certificate',
+                '-a',
+                keychainName
+            ]);
+            // Look for certificates with labels like "Apple Development" or "Apple Distribution"
+            const lablRegex = /"labl"<blob>="([^"]*(?:Development|Distribution|Mac|iPhone)[^"]*)"/g;
+            let match;
+            const certificateLabels = [];
+            while ((match = lablRegex.exec(stdout)) !== null) {
+                certificateLabels.push(match[1]);
+            }
+            resolve(certificateLabels);
+        }
+        catch (error) {
+            reject(error);
+        }
+    });
+}
+
+
+/***/ }),
+
 /***/ 1730:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -25657,52 +25849,64 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
-const wait_1 = __nccwpck_require__(910);
+const keychain_1 = __nccwpck_require__(1555);
+const fs_1 = __nccwpck_require__(9896);
+const platform_1 = __nccwpck_require__(8968);
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 async function run() {
+    const keychainName = core.getInput('keychain-name', { required: true }) + '.keychain';
+    const keychainPassword = core.getInput('keychain-password', {
+        required: true
+    });
+    const keychainTimeout = parseInt(core.getInput('keychain-timeout', { required: true }));
+    core.setSecret(keychainPassword);
+    // Import the certificates
+    const signingCertificates = core.getMultilineInput('signing-certificates', { required: true });
+    const signingCertificatePassphrase = core.getInput('signing-certificate-passphrase', { required: true });
+    const certificatePath = `${process.env.RUNNER_TEMP}/certificate.p12`;
+    core.setSecret(signingCertificatePassphrase);
     try {
-        const ms = core.getInput('milliseconds');
-        // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-        core.debug(`Waiting ${ms} milliseconds ...`);
-        // Log the current timestamp, wait, then log the new timestamp
-        core.debug(new Date().toTimeString());
-        await (0, wait_1.wait)(parseInt(ms, 10));
-        core.debug(new Date().toTimeString());
-        // Set outputs for other workflow steps to use
-        core.setOutput('time', new Date().toTimeString());
+        if (!platform_1.isMacOS) {
+            throw new Error(`${process.platform} not supported. This action is only supported on macOS`);
+        }
+        // Create the keychain
+        await (0, keychain_1.createKeychain)(keychainName, keychainPassword, keychainTimeout);
+        await core.group(`Importing ${signingCertificates.length} certificates`, async () => {
+            for (let i = 0; i < signingCertificates.length; i++) {
+                core.info(`Importing certificate ${i + 1} of ${signingCertificates.length}`);
+                // Decode the certificate from base64
+                const certificateData = Buffer.from(signingCertificates[i], 'base64');
+                // Write the certificate to a temporary file
+                await fs_1.promises.writeFile(certificatePath, certificateData);
+                // Import the certificate to the keychain
+                await (0, keychain_1.importCertificate)(certificatePath, signingCertificatePassphrase, keychainName, keychainPassword);
+            }
+            core.info('\x1b[32mCertificates imported successfully\x1b[0m');
+            if (core.isDebug()) {
+                // List the certificates in the keychain
+                const certificates = await (0, keychain_1.listCertificates)(keychainName);
+                core.info(`\x1b[33mCertificates in ${keychainName}: \n\x1b[0m` +
+                    certificates.map(cert => `\x1b[33m  * ${cert}\x1b[0m`).join('\n'));
+            }
+        });
     }
     catch (error) {
         // Fail the workflow run if an error occurs
         if (error instanceof Error)
             core.setFailed(error.message);
     }
-}
-
-
-/***/ }),
-
-/***/ 910:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wait = wait;
-/**
- * Wait for a number of milliseconds.
- * @param milliseconds The number of milliseconds to wait.
- * @returns {Promise<string>} Resolves with 'done!' after the wait is over.
- */
-async function wait(milliseconds) {
-    return new Promise(resolve => {
-        if (isNaN(milliseconds)) {
-            throw new Error('milliseconds not a number');
+    finally {
+        if (!core.isDebug()) {
+            // Cleanup the job
+            core.info('\x1b[33mCleaning up\x1b[0m');
+            await (0, keychain_1.deleteKeychain)(keychainName);
+            // Delete the temporary certificate file
+            await fs_1.promises.unlink(certificatePath);
         }
-        setTimeout(() => resolve('done!'), milliseconds);
-    });
+    }
 }
 
 

@@ -25,7 +25,8 @@ export async function createKeychain(
       core.debug(`Creating keychain ${keychainName}`)
       await exec.exec('security', [
         'create-keychain',
-        '-p', keychainPassword,
+        '-p',
+        keychainPassword,
         keychainName
       ])
       core.info(`Keychain ${keychainName} created`)
@@ -37,12 +38,13 @@ export async function createKeychain(
       //   '-s', 'login.keychain', keychainName
       // ])
       // core.info(`Default keychain set to ${keychainName}`)
-      
+
       // Unlock the keychain
       core.debug(`Unlocking keychain ${keychainName}`)
       await exec.exec('security', [
         'unlock-keychain',
-        '-p', keychainPassword,
+        '-p',
+        keychainPassword,
         keychainName
       ])
 
@@ -50,16 +52,21 @@ export async function createKeychain(
       core.debug(`Setting keychain timeout to ${keychainTimeout} seconds`)
       await exec.exec('security', [
         'set-keychain-settings',
-        '-t', keychainTimeout.toString(),
-        '-u',keychainName
+        '-t',
+        keychainTimeout.toString(),
+        '-u',
+        keychainName
       ])
 
       // Reveal the keychain to the user
       core.debug(`Revealing keychain ${keychainName} to the user`)
       await exec.exec('security', [
         'list-keychains',
-        '-d', 'user',
-        '-s','login.keychain', keychainName
+        '-d',
+        'user',
+        '-s',
+        'login.keychain',
+        keychainName
       ])
     } catch (error) {
       reject(error)
@@ -107,12 +114,18 @@ export async function importCertificate(
     try {
       core.debug(`Importing ${certificatePath} into keychain ${keychainName}`)
       await exec.exec('security', [
-        'import', certificatePath,
-        '-P', certificatePassphrase,
-        '-k', keychainName,
-        '-t', 'cert',
-        '-f', 'pkcs12',
-        '-T', '/usr/bin/codesign',
+        'import',
+        certificatePath,
+        '-P',
+        certificatePassphrase,
+        '-k',
+        keychainName,
+        '-t',
+        'cert',
+        '-f',
+        'pkcs12',
+        '-T',
+        '/usr/bin/codesign',
         '-x'
       ])
 
@@ -120,9 +133,11 @@ export async function importCertificate(
       core.debug('Setting key-partition-list')
       await exec.exec('security', [
         'set-key-partition-list',
-        '-S', 'apple-tool:,apple:,codesign:',
+        '-S',
+        'apple-tool:,apple:,codesign:',
         '-s',
-        '-k', keychainPassword,
+        '-k',
+        keychainPassword,
         keychainName
       ])
     } catch (error) {
@@ -137,17 +152,20 @@ export async function importCertificate(
  * Display Certificates in the keychain
  * @returns {Promise<string[]>} Resolves with an array of certificate names
  */
-export async function listCertificates(keychainName: string): Promise<string[]> {
+export async function listCertificates(
+  keychainName: string
+): Promise<string[]> {
   return new Promise(async (resolve, reject) => {
     try {
       const { stdout } = await exec.getExecOutput('security', [
-        'find-certificate', 
+        'find-certificate',
         '-a',
         keychainName
       ])
 
       // Look for certificates with labels like "Apple Development" or "Apple Distribution"
-      const lablRegex = /"labl"<blob>="([^"]*(?:Development|Distribution|Mac|iPhone)[^"]*)"/g
+      const lablRegex =
+        /"labl"<blob>="([^"]*(?:Development|Distribution|Mac|iPhone)[^"]*)"/g
       let match: RegExpExecArray | null
       const certificateLabels = []
 
