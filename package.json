@@ -1,21 +1,22 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
-  "author": "",
+  "name": "keychain-setup-action",
+  "description": "Setup a keychain for signing Apple apps",
+  "version": "0.0.1",
+  "author": "Danny Gilbert",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/dgilbert-foreflight/keychain-setup-action",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/dgilbert-foreflight/keychain-setup-action.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/dgilbert-foreflight/keychain-setup-action/issues"
   },
   "keywords": [
     "actions",
-    "node",
-    "setup"
+    "xcode",
+    "keychain",
+    "signing"
   ],
   "exports": {
     ".": "./dist/index.js"
