@@ -46,19 +46,28 @@ jobs:
 
   test-action:
     name: GitHub Actions Test
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ent/Mobile
+      labels:
+        - self-hosted
+        - macOS
 
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
 
-      - name: Test Local Action
-        id: test-action
+      - name: Setup Keychain
+        id: setup-keychain
         uses: ./
         with:
-          milliseconds: 2000
+          keychain-name: "${{ vars.KEYCHAIN_NAME }}"
+          keychain-password: "${{ secrets.KEYCHAIN_PASSWORD }}"
+          keychain-timeout: 300
+          signing-certificates: "${{ secrets.SIGNING_CERTIFICATE }}"
+          signing-certificate-passphrase: "${{ secrets.SIGNING_CERTIFICATE_PASSPHRASE }}"
 
-      - name: Print Output
+      - name: Print Step Outputs
         id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+        run: |
+          echo "Keychain Name: ${{ steps.setup-keychain.outputs.keychain-name }}"
